@@ -21,12 +21,21 @@ ASCharacter::ASCharacter()
 void ASCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	DefaultCameraFov = CameraComponent->FieldOfView;
+
+	SpawnWeapon();
 }
 
 // Called every frame
 void ASCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	const float TargetFov = ZoomInCamera ? ZoomCameraFov : DefaultCameraFov;
+	const float FovToSet = FMath::FInterpTo(CameraComponent->FieldOfView, TargetFov, DeltaTime, ZoomInterpSpeed);
+
+	CameraComponent->SetFieldOfView(FovToSet);
 }
 
 FVector ASCharacter::GetPawnViewLocation() const
@@ -54,6 +63,32 @@ void ASCharacter::EndCrouch()
 	UnCrouch();
 }
 
+void ASCharacter::BeginZoom()
+{
+	ZoomInCamera = true;
+}
+
+void ASCharacter::EndZoom()
+{
+	ZoomInCamera = false;
+}
+
+void ASCharacter::Fire()
+{
+	if (CurrentWeapon) CurrentWeapon->Fire();
+}
+
+void ASCharacter::SpawnWeapon() 
+{
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	CurrentWeapon = GetWorld()->SpawnActor<ASWeapon>(WeaponRef, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+	CurrentWeapon->SetOwner(this);
+	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
+}
+
 
 // Called to bind functionality to input
 void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -70,4 +105,9 @@ void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &ASCharacter::EndCrouch);
 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+
+	PlayerInputComponent->BindAction("Zoom", IE_Pressed, this, &ASCharacter::BeginZoom);
+	PlayerInputComponent->BindAction("Zoom", IE_Released, this, &ASCharacter::EndZoom);
+
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ASCharacter::Fire);
 }

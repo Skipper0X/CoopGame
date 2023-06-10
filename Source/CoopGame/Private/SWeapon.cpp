@@ -3,21 +3,19 @@
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 
+static int32 DebugWeaponDrawing = 0;
+FAutoConsoleVariableRef CVarDebugWeaponDrawing(
+	TEXT("COOP.DebugWeapons"),
+	DebugWeaponDrawing,
+	TEXT("Draw Debug Lines For Weapns"),
+	ECVF_Cheat);
+
 // Sets default values
 ASWeapon::ASWeapon()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-
 	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeshComponent"));
 
 	MuzzleSocketName = "MuzzleSocket";
-}
-
-// Called when the game starts or when spawned
-void ASWeapon::BeginPlay()
-{
-	Super::BeginPlay();
 }
 
 void ASWeapon::Fire()
@@ -30,6 +28,7 @@ void ASWeapon::Fire()
 
 		const FVector TraceEnd = Location + (Rotation.Vector() * 1000);
 		FVector TracerEndPoint = TraceEnd;
+		FVector MuzzleLocation = MeshComponent->GetSocketLocation(MuzzleSocketName);
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(WeaponOwner);
@@ -48,24 +47,39 @@ void ASWeapon::Fire()
 			UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), ImpactEffect, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
 		}
 
-		DrawDebugLine(GetWorld(), Location, TraceEnd, FColor::White, false, 1.0f, 0, 1.0f);
-
-		if (MuzzleEffect)
+		if (DebugWeaponDrawing > 0)
 		{
-			UGameplayStatics::SpawnEmitterAttached(MuzzleEffect, MeshComponent, MuzzleSocketName);
+			DrawDebugLine(GetWorld(), Location, TraceEnd, FColor::White, false, 1.0f, 0, 1.0f);
 		}
 
-		if (TracerEffect)
+
+		PlayMuzzleVfx();
+		PlayTracerVfx(TracerEndPoint, MuzzleLocation);
+
+
+		if (auto Pawn = Cast<APawn>(WeaponOwner))
 		{
-			FVector MuzzleLocation = MeshComponent->GetSocketLocation(MuzzleSocketName);
-			UParticleSystemComponent* Tracer = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), TracerEffect, MuzzleLocation);
-			Tracer->SetVectorParameter("Target", TracerEndPoint);
+			if (auto PC = Cast<APlayerController>(Pawn->GetController()))
+			{
+				PC->ClientStartCameraShake(FireCameraShake);
+			}
 		}
 	}
 }
 
-// Called every frame
-void ASWeapon::Tick(float DeltaTime)
+void ASWeapon::PlayMuzzleVfx() const
 {
-	Super::Tick(DeltaTime);
+	if (MuzzleEffect)
+	{
+		UGameplayStatics::SpawnEmitterAttached(MuzzleEffect, MeshComponent, MuzzleSocketName);
+	}
+}
+
+void ASWeapon::PlayTracerVfx(const FVector& TracerEndPoint, const FVector& MuzzleLocation) const
+{
+	if (TracerEffect)
+	{
+		UParticleSystemComponent* Tracer = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), TracerEffect, MuzzleLocation);
+		Tracer->SetVectorParameter("Target", TracerEndPoint);
+	}
 }
