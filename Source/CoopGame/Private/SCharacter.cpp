@@ -1,5 +1,7 @@
 #include "SCharacter.h"
 
+#include "Components/CapsuleComponent.h"
+#include "CoopGame/CoopGame.h"
 #include "GameFramework/PawnMovementComponent.h"
 
 // Sets default values
@@ -8,6 +10,7 @@ ASCharacter::ASCharacter()
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	ACharacter::GetMovementComponent()->GetNavAgentPropertiesRef().bCanCrouch = true;
+	GetCapsuleComponent()->SetCollisionResponseToChannel(COLLISION_WEAPON, ECR_Ignore);
 
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
 	SpringArmComponent->SetupAttachment(RootComponent);
@@ -15,6 +18,8 @@ ASCharacter::ASCharacter()
 
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
+
+	HealthComponent = CreateDefaultSubobject<USHealthComponent>(TEXT("HpComponent"));
 }
 
 // Called when the game starts or when spawned
@@ -25,6 +30,8 @@ void ASCharacter::BeginPlay()
 	DefaultCameraFov = CameraComponent->FieldOfView;
 
 	SpawnWeapon();
+
+	HealthComponent->OnHpChange.AddDynamic(this, &ASCharacter::OnHpChange);
 }
 
 // Called every frame
@@ -73,12 +80,34 @@ void ASCharacter::EndZoom()
 	ZoomInCamera = false;
 }
 
-void ASCharacter::Fire()
+// ReSharper disable once CppMemberFunctionMayBeConst
+void ASCharacter::StartFiring()
 {
-	if (CurrentWeapon) CurrentWeapon->Fire();
+	if (CurrentWeapon) CurrentWeapon->StartFiring();
 }
 
-void ASCharacter::SpawnWeapon() 
+// ReSharper disable once CppMemberFunctionMayBeConst
+void ASCharacter::StopFiring()
+{
+	if (CurrentWeapon) CurrentWeapon->StopFiring();
+}
+
+void ASCharacter::OnHpChange(USHealthComponent* HpComponent, float Hp, float HpDelta, const UDamageType* DamageType,
+                             AController* InstigatedBy, AActor* DamageCauser)
+{
+	if (Hp <= 0.0f && IsDead == false)
+	{
+		IsDead = true;
+
+		GetMovementComponent()->StopMovementImmediately();
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		DetachFromControllerPendingDestroy();
+
+		SetLifeSpan(10.0f);
+	}
+}
+
+void ASCharacter::SpawnWeapon()
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -109,5 +138,6 @@ void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	PlayerInputComponent->BindAction("Zoom", IE_Pressed, this, &ASCharacter::BeginZoom);
 	PlayerInputComponent->BindAction("Zoom", IE_Released, this, &ASCharacter::EndZoom);
 
-	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ASCharacter::Fire);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ASCharacter::StartFiring);
+	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ASCharacter::StopFiring);
 }

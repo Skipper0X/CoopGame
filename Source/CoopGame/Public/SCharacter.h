@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "SWeapon.h"
 #include "Camera/CameraComponent.h"
+#include "Components/SHealthComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "SCharacter.generated.h"
@@ -40,13 +41,22 @@ protected:
 
 	void EndZoom();
 
-	void Fire();
+	void StartFiring();
+
+	void StopFiring();
+
+	UFUNCTION()
+	void OnHpChange(USHealthComponent* HpComponent, float Hp, float HpDelta, const UDamageType* DamageType, AController* InstigatedBy,
+	                AActor* DamageCauser);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UCameraComponent* CameraComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USpringArmComponent* SpringArmComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USHealthComponent* HealthComponent;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Player")
 	float ZoomCameraFov = 65.0f;
@@ -59,6 +69,9 @@ protected:
 
 	UPROPERTY(VisibleDefaultsOnly, Category = "Player")
 	FName WeaponAttachSocketName = "WeaponSocket";
+
+	UPROPERTY(BlueprintReadOnly, Category = "Player")
+	bool IsDead = false;
 
 private:
 	void SpawnWeapon();
