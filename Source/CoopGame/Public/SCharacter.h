@@ -70,14 +70,15 @@ protected:
 	UPROPERTY(VisibleDefaultsOnly, Category = "Player")
 	FName WeaponAttachSocketName = "WeaponSocket";
 
-	UPROPERTY(BlueprintReadOnly, Category = "Player")
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Player")
 	bool IsDead = false;
 
 private:
 	void SpawnWeapon();
 
+	UPROPERTY(Replicated)
+	ASWeapon* CurrentWeapon;
+
 	bool ZoomInCamera = false;
 	float DefaultCameraFov = 90.0f;
-
-	ASWeapon* CurrentWeapon;
 };

@@ -4,6 +4,18 @@
 #include "GameFramework/Actor.h"
 #include "SWeapon.generated.h"
 
+USTRUCT()
+struct FHitScanTrace
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TEnumAsByte<EPhysicalSurface> SurfaceType;
+
+	UPROPERTY()
+	FVector_NetQuantize TraceTo;
+};
+
 UCLASS()
 class COOPGAME_API ASWeapon : public AActor
 {
@@ -22,11 +34,14 @@ protected:
 
 	void Fire();
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerFire();
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* MeshComponent;
 
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
-	FName MuzzleSocketName;
+	FName MuzzleSocketName = "MuzzleSocket";
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<UDamageType> DamageType;
@@ -53,12 +68,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Weapon")
 	float RateOfFire = 600;
 
+	UPROPERTY(ReplicatedUsing = OnRep_HitScanTrace)
+	FHitScanTrace HitScanTrace;
+
+	UFUNCTION()
+	void OnRep_HitScanTrace();
+
 	float LastFireTime;
 	float TimeBetweenShots;
 	FTimerHandle AutomaticFireTimeHandle;
 
 private:
-	void PlayMuzzleVfx() const;
-
-	void PlayTracerVfx(const FVector& TracerEndPoint, const FVector& MuzzleLocation) const;
+	void PlayImpactEffects(EPhysicalSurface SurfaceType, const FVector& ImpactPoint) const;
+	void PlayWeaponEffects(const FVector& TracerEndPoint) const;
 };

@@ -3,6 +3,7 @@
 #include "Components/CapsuleComponent.h"
 #include "CoopGame/CoopGame.h"
 #include "GameFramework/PawnMovementComponent.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ASCharacter::ASCharacter()
@@ -29,7 +30,7 @@ void ASCharacter::BeginPlay()
 
 	DefaultCameraFov = CameraComponent->FieldOfView;
 
-	SpawnWeapon();
+	if (GetLocalRole() == ROLE_Authority) SpawnWeapon();
 
 	HealthComponent->OnHpChange.AddDynamic(this, &ASCharacter::OnHpChange);
 }
@@ -118,7 +119,6 @@ void ASCharacter::SpawnWeapon()
 	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, WeaponAttachSocketName);
 }
 
-
 // Called to bind functionality to input
 void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -140,4 +140,12 @@ void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &ASCharacter::StartFiring);
 	PlayerInputComponent->BindAction("Fire", IE_Released, this, &ASCharacter::StopFiring);
+}
+
+void ASCharacter::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ASCharacter, CurrentWeapon);
+	DOREPLIFETIME(ASCharacter, IsDead);
 }
